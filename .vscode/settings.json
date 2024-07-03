@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "termios.h": "c",
+        "error.h": "c",
+        "gamelogic.h": "c"
+    }
+}
