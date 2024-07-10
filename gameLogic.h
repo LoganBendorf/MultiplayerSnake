@@ -33,6 +33,7 @@ typedef struct node {
 
 typedef struct screenData {
     char* map;
+    // Byte not char
     char width;
     char height;
 } screenData;
