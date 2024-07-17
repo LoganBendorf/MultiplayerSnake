@@ -1,0 +1,11 @@
+
+# Players have no velocity when the game starts and die instantly, maybe remove zero velocity deaths
+
+# Issue of players spawning on apple
+# Server and client players spawn at the same position
+
+# srand()?
+
+Minor:
+# Snake will collide with itself when it shouldn't
+    - You should be able to make a square with 4 pieces, and keep rotating around in that square without hitting yourself, but you can't

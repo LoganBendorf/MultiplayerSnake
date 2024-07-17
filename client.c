@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
 #include <time.h>
@@ -43,12 +44,10 @@
 #define SOCKET_ERRNO errno
 #define GET_ERROR_STRING strerror(errno)
 #endif
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #include "gameLogic.h"
 #include "errorFunctions.h"
+#include "timeHelpers.h"
 
 int main(int argc, char* argv[]) {
 
@@ -142,6 +141,9 @@ int main(int argc, char* argv[]) {
                 ip[strcspn(ip, "\n")] = 0;
                 break;}
         }
+        if (strncmp(ip, "localhost", 9 || strlen(ip) == 0)) {
+            strcpy(ip, "0.0.0.0");
+        }
         char port[16] = {0};
         while (true) {
             printf("SERVER PORT?\n");
@@ -149,8 +151,8 @@ int main(int argc, char* argv[]) {
                 port[strcspn(port, "\n")] = 0;
                 break;}
         }
-        if (strncmp(ip, "localhost", 9)) {
-            strcpy(ip, "0.0.0.0");
+        if (strlen(port) == 0) {
+            strcpy(port, "9001");
         }
         if (addrRC = getaddrinfo(ip, port, &hints, &serverAddress) != 0) {
             printf("Failed to connect. (rc: %d) Line: %d\n", addrRC, __LINE__);
@@ -213,20 +215,24 @@ int main(int argc, char* argv[]) {
 
     screenData screen = {0, 0, 0};
     // Has no bounds checking with pointer but I don't care
-    char* pointer = strstr(read, "screenSize: ");
+    const char* screenSizeString = "screenSize: ";
+    char* pointer = strstr(read, screenSizeString);
     if (pointer == 0) {
         fprintf(stderr, "Failed to find screen size. Line: %d\n", __LINE__);
         exit(1);
     }
-    pointer += 13;
-    char* quinter = strstr(read, "x");
+    pointer += strlen(screenSizeString);
+
+    char* quinter = strstr(pointer, "x");
     char temp[128] = {0};
-    snprintf(temp, quinter - pointer, "%s", pointer);
+    snprintf(temp, quinter - pointer + 1, "%s", pointer);
     screen.width = atoi(temp);
+    printf("width = %d\n", screen.width);
     pointer = quinter + 1;
     quinter = strstr(read, "\n");
-    snprintf(temp, quinter - pointer, "%s", pointer);
+    snprintf(temp, quinter - pointer + 1, "%s", pointer);
     screen.height = atoi(temp);
+    printf("height = %d\n", screen.height);
 
     char* map = (char*) Malloc(screen.width * screen.height);
     for (int i = 0; i < screen.height; i++) {
@@ -239,41 +245,48 @@ int main(int argc, char* argv[]) {
     }
     screen.map = map;
 
-    pointer = strstr(read, "serverStartingPosition: ");
+    const char* serverStartingPositionString = "serverStartingPosition: ";
+    pointer = strstr(pointer, serverStartingPositionString);
     if (pointer == 0) {
         fprintf(stderr, "Failed to find sever starting position. Line: %d\n", __LINE__);
         exit(1);
     }
-    pointer += 25;
-    quinter = strstr(read, "\n");
-    snprintf(temp, quinter - pointer, "%s", pointer);
+    pointer += strlen(serverStartingPositionString);
+    quinter = strstr(pointer, "\n");
+    snprintf(temp, quinter - pointer + 1, "%s", pointer);
     int serverStartingPosition = atoi(temp);
+    printf("server starting position = %d\n", serverStartingPosition);
 
     screen.map[serverStartingPosition] = 'O';
 
-    pointer = strstr(read, "clientStartingPosition: ");
+    const char* clientStartingPositionString = "clientStartingPosition: ";
+    pointer = strstr(pointer, clientStartingPositionString);
     if (pointer == 0) {
         fprintf(stderr, "Failed to find client starting position. Line: %d\n", __LINE__);
         exit(1);
     }
-    pointer += 25;
-    quinter = strstr(read, "\n");
-    snprintf(temp, pointer - quinter, "%s", pointer);
+    pointer += strlen(clientStartingPositionString);
+    quinter = strstr(pointer, "\n");
+    snprintf(temp, pointer - quinter + 1, "%s", pointer);
     int clientStartingPosition = atoi(temp);
+    printf("client starting position = %d\n", clientStartingPosition);
 
     screen.map[clientStartingPosition] = 'O';
 
-    pointer = strstr(read, "randomSeed: ");
+    const char* randomSeedString = "randomSeed: ";
+    pointer = strstr(pointer, randomSeedString);
     if (pointer == 0) {
         fprintf(stderr, "Failed to find random seed. Line: %d\n", __LINE__);
         exit(1);
     }
-    pointer += 13;
-    quinter = strstr(read, "\n");
-    snprintf(temp, quinter - pointer, "%s", pointer);
+    pointer += strlen(randomSeedString);
+    quinter = strstr(pointer, "\n");
+    snprintf(temp, quinter - pointer + 1, "%s", pointer);
     int randomSeed = atoi(temp);
+    printf("random seed = %d\n", randomSeed);
     srand(randomSeed);
 
+    printScreen(screen);
     disableEcho();
 
     node* player = (node*) Malloc(sizeof(node));
@@ -317,9 +330,12 @@ int main(int argc, char* argv[]) {
         sum += bytes;
         if (numLoops++ >= maxLoops) {
             fprintf(stderr, "massive failure while sending 'Sync'. Line: %d\n", __LINE__);
+            enableEcho();
             exit(1);
         }
     }
+    printf("'Sync' sent to server, waiting for ack\n");
+    memset(read, 0, strlen(read) - 1);
     totalBytesRead = 0;
     while (true) {
         int bytes = recvfrom(serverSocket,
@@ -329,47 +345,65 @@ int main(int argc, char* argv[]) {
         totalBytesRead += bytes;
         if (totalBytesRead > 1024) {
             fprintf(stderr, "massive failure while syncing. Line: %d\n", __LINE__);
+            enableEcho();
             exit(1);
         }
         if (numLoops > maxLoops) {
             fprintf(stderr, "massive failure while syncing. Line: %d\n", __LINE__);
+            enableEcho();
             exit(1);
         }
+        if (totalBytesRead != 0) {
+            break;
+        }
     }
-    pointer = strstr(read, "startTime: ");
+
+    printf("Received %s\n", read);
+
+    const char* startTimeString = "startTime: ";
+    pointer = strstr(read, startTimeString);
     if (pointer == 0) {
         fprintf(stderr, "Failed to start time. Line: %d\n", __LINE__);
+        enableEcho();
         exit(1);
     }
-    pointer += 12;
-    quinter = strstr(read, "\n");
-    snprintf(temp, quinter - pointer, "%s", pointer);
-    long long startTime = atoi(temp);
+    pointer += strlen(startTimeString);
+    quinter = strstr(pointer, ",");
+    snprintf(temp, quinter - pointer + 1, "%s", pointer);
+    struct timespec lastTime, currentTime;
+    lastTime.tv_sec = atoi(temp);
+    //DO NSEC
+
+    pointer = quinter + 1;
+    quinter = strstr(pointer, "\n");
+    snprintf(temp, quinter - pointer + 1, "%s", pointer);
+    lastTime.tv_nsec = atoi(temp);
+
     printf("Receieved start time, starting game\n");
 
-    clock_t last_time = startTime;
     //////////////// GAME LOOP ////////////////////
     #define DEBUG false
     while (true) {
-        clock_t current_time = clock();
-        double elapsed_time = (double)(current_time - last_time) / CLOCKS_PER_SEC;
+        clock_gettime(CLOCK_MONOTONIC, &currentTime);
+
+        long long elapsedTime = diffMilli(&lastTime, &currentTime);
 
         bool shouldBuffer = true;
-        if (elapsed_time > .4 && shouldBuffer) {
+        if (elapsedTime > 400 && shouldBuffer) {
             getInput(player, shouldBuffer, player->hasTail);}
 
-        if (elapsed_time < 1.0) {
+        if (elapsedTime < 1000) {
             continue;}
 
-        last_time = current_time;
+        lastTime = currentTime;
 
         shouldBuffer = false;
         getInput(player, shouldBuffer, player->hasTail);
-        if (!gameStart) {
+        /*if (!gameStart) {
             if (player->xMov == 0 && player->yMov == 0) {
                 continue;}
             gameStart = true;
-        }
+        }*/
 
         addErrorMsgFormat(errorData, "Player at (%d, %d). Velocity = (%d, %d). PrevMov = (%d, %d)\n", 
                 player->xPos, player->yPos, player->xMov, player->yMov, player->prevXMov, player->prevYMov);
@@ -392,6 +426,7 @@ int main(int argc, char* argv[]) {
             screen.map[(player->yPos - player->yMov) * screen.width + player->xPos - player->xMov] = ' ';
         }
 
+        printf("draw called\n");
         drawTail(player, &errorData, &screen);
 
         while (!appleOnMap) {
@@ -400,7 +435,7 @@ int main(int argc, char* argv[]) {
 
         printScreen(screen);
 
-        #if DEBUG == true
+        #if DEBUG_GAME == true
         printErrorMessages(&errorData);
         #endif
     }
@@ -411,5 +446,6 @@ int main(int argc, char* argv[]) {
     #if defined(_WIN32)
     WSACleanup();
     #endif
+    enableEcho();
     printf("Finished.\n");
 }

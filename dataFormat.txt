@@ -5,4 +5,4 @@ serverStartingPosition: 23
 clientStartingPosition: 45
 randomSeed: 9852823057
 
-startTime: 4234293432
+startTime: {seconds}, [usec]

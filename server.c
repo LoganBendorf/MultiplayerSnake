@@ -5,6 +5,7 @@
 #define MAX_HEIGHT 20
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
 #include <time.h>
@@ -49,12 +50,10 @@
 #define SOCKET_ERRNO errno
 #define GET_ERROR_STRING strerror(errno)
 #endif
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #include "gameLogic.h"
 #include "errorFunctions.h"
+#include "timeHelpers.h"
 
 int main(int argc, char* argv[]) {
 
@@ -132,7 +131,7 @@ int main(int argc, char* argv[]) {
     // Connect
     struct sockaddr_storage clientAddressStorage;
     socklen_t clientLen = sizeof(clientAddressStorage);
-    char read[1024];
+    char read[1024] = {0};
     int totalBytesRead = 0;
     printf("Waiting for client connection...\n");
     while (true) {
@@ -145,11 +144,11 @@ int main(int argc, char* argv[]) {
             fprintf(stderr, "massive failure while receiving game start from client. Line: %d\n", __LINE__);
             exit(1);
         }
-        if (strncmp(read, "Creat game", 10)) {
+        if (strncmp(read, "Create game", 11) == 0) {
             break;
         }
     }
-    printf("Client connected\n");
+    printf("Received %s: Client connected\n", read);
 
     char clientIP[INET_ADDRSTRLEN];
     int clientPortAsInt;
@@ -226,20 +225,12 @@ int main(int argc, char* argv[]) {
     printf("height = %d\n", HEIGHT);
 
     printf("Creating game state and sending info to client...\n");
-    char sendBuffer[128] = {0};
+    char sendBuffer[1024] = {0};
     strncpy(sendBuffer, "screenSize: ", 12);
     strcat(sendBuffer, stringWidth);
     strcat(sendBuffer, "x");
     strcat(sendBuffer, stringHeight);
 
-    int bytesSent = sendto(clientSocket,
-                    sendBuffer, strlen(sendBuffer),
-                    0,
-                    clientAddress->ai_addr, clientAddress->ai_addrlen);
-    if (bytesSent < strlen(sendBuffer) ) {
-        fprintf(stderr, "bruh. Line: %d\n", __LINE__);
-        exit(1);
-    }
 
     screenData screen = {0, WIDTH, HEIGHT};
 
@@ -254,17 +245,9 @@ int main(int argc, char* argv[]) {
     char charServerStartingPosition[8] = {0};
     snprintf(charServerStartingPosition, 8, "%d", serverStartingPosition);
 
-    strncpy(sendBuffer, "\nserverStartingPosition: ", 25);
+    strcat(sendBuffer, "\nserverStartingPosition: ");
     strcat(sendBuffer, charServerStartingPosition);
 
-    bytesSent = sendto(clientSocket,
-                    sendBuffer, strlen(sendBuffer),
-                    0,
-                    clientAddress->ai_addr, clientAddress->ai_addrlen);
-    if (bytesSent < strlen(sendBuffer) ) {
-        fprintf(stderr, "bruh. Line: %d\n", __LINE__);
-        exit(1);
-    }
 
     randomX = rand() % (screen.width - 2);
     randomY = rand() % (screen.height - 2);
@@ -274,25 +257,16 @@ int main(int argc, char* argv[]) {
     char charClientStartingPosition[8] = {0};
     snprintf(charClientStartingPosition, 8, "%d", clientStartingPosition);
                           
-    strncpy(sendBuffer, "\nclientStartingPosition: ", 25);
+    strcat(sendBuffer, "\nclientStartingPosition: ");
     strcat(sendBuffer, charClientStartingPosition);
 
-    bytesSent = sendto(clientSocket,
-                    sendBuffer, strlen(sendBuffer),
-                    0,
-                    clientAddress->ai_addr, clientAddress->ai_addrlen);
-    if (bytesSent < strlen(sendBuffer) ) {
-        fprintf(stderr, "bruh. Line: %d\n", __LINE__);
-        exit(1);
-    }
-
-    strncpy(sendBuffer, "\nrandomSeed: ", 13);
+    strcat(sendBuffer, "\nrandomSeed: ");
     char stringRandomSeed[64] = {0};
     snprintf(stringRandomSeed, 32, "%d", randomSeed);
     strcat(sendBuffer, stringRandomSeed);
     strcat(sendBuffer, "\n");
 
-    bytesSent = sendto(clientSocket,
+    int bytesSent = sendto(clientSocket,
                     sendBuffer, strlen(sendBuffer),
                     0,
                     clientAddress->ai_addr, clientAddress->ai_addrlen);
@@ -321,6 +295,7 @@ int main(int argc, char* argv[]) {
 
     screen.map[clientStartingPosition] = 'O';
 
+    printScreen(screen);
     disableEcho();
 
     printf("Initializing client player\n");
@@ -355,62 +330,79 @@ int main(int argc, char* argv[]) {
 
     // Wait for sync
     printf("Waiting for client sync message...\n");
-    memset(read, 0, sizeof(read));
+    memset(read, 0, strlen(read) - 1);
     totalBytesRead = 0;
     while (true) {
-        int bytes = recvfrom(clientSocket,
+        int bytes = recvfrom(listenSocket,
                     read + totalBytesRead, 1024 - totalBytesRead,
                     0,
                     (struct sockaddr*) &clientAddressStorage, &clientLen);
         totalBytesRead += bytes;
         if (totalBytesRead > 1024) {
             fprintf(stderr, "massive failure while receiving game start from client. Line: %d\n", __LINE__);
+            enableEcho();
             exit(1);
         }
-        if (strncmp(read, "Sync", 4)) {
+        if (strncmp(read, "Sync", 4) == 0) {
             break;
+        }
+        if (bytes != 0) {
+            printf("got something\n");
+            printf("%s\n", read);
         }
     }
 
     printf("Sending sync time to client\n");
-    clock_t startTime = clock();
-    char stringStartTime[128];
-    snprintf(stringStartTime, 64, "%ld", startTime);
-    strncpy(sendBuffer, "startTime: ", 11);
-    strcat(sendBuffer, stringStartTime);
+    memset(sendBuffer, 0, strlen(sendBuffer) - 1);
+    char startTimeSeconds[128];
+    char startTimeNanoSeconds[128];
+    const char* startTimeString = "startTime: ";
+    strcat(sendBuffer, startTimeString);
+    struct timespec lastTime, currentTime;
+    clock_gettime(CLOCK_MONOTONIC, &lastTime);
+    snprintf(startTimeSeconds, 64, "%ld", lastTime.tv_sec);
+    strcat(sendBuffer, startTimeSeconds);
+    strcat(sendBuffer, ",");
+    snprintf(startTimeNanoSeconds, 64, "%ld", lastTime.tv_nsec);
+    strcat(sendBuffer, startTimeNanoSeconds);
     strcat(sendBuffer, "\n");
+
     bytesSent = sendto(clientSocket,
                     sendBuffer, strlen(sendBuffer),
                     0,
                     clientAddress->ai_addr, clientAddress->ai_addrlen);
     if (bytesSent < strlen(sendBuffer) ) {
         fprintf(stderr, "bruh. Line: %d\n", __LINE__);
+        enableEcho();
         exit(1);
     }
+
+    printf("Sent start time: %s,%s\n", startTimeSeconds, startTimeNanoSeconds);
     printf("Starting game\n");
-    clock_t last_time = startTime;
     //////////////// GAME LOOP ////////////////////
     #define DEBUG false
     while (true) {
-        clock_t current_time = clock();
-        double elapsed_time = (double)(current_time - last_time) / CLOCKS_PER_SEC;
+        clock_gettime(CLOCK_MONOTONIC, &currentTime);
+
+        long long elapsedTime = diffMilli(&lastTime, &currentTime);
+        //printf("elapsedTime = %lld\n", elapsedTime);
 
         bool shouldBuffer = true;
-        if (elapsed_time > .4 && shouldBuffer) {
+        if (elapsedTime > 400 && shouldBuffer) {
             getInput(player, shouldBuffer, player->hasTail);}
 
-        if (elapsed_time < 1.0) {
+        if (elapsedTime < 1000) {
             continue;}
 
-        last_time = current_time;
+        lastTime = currentTime;
 
         shouldBuffer = false;
         getInput(player, shouldBuffer, player->hasTail);
-        if (!gameStart) {
+        /*if (!gameStart) {
             if (player->xMov == 0 && player->yMov == 0) {
                 continue;}
             gameStart = true;
-        }
+        }*/
 
         addErrorMsgFormat(errorData, "Player at (%d, %d). Velocity = (%d, %d). PrevMov = (%d, %d)\n", 
                 player->xPos, player->yPos, player->xMov, player->yMov, player->prevXMov, player->prevYMov);
@@ -441,7 +433,7 @@ int main(int argc, char* argv[]) {
 
         printScreen(screen);
 
-        #if DEBUG == true
+        #if DEBUG_GAME == true
         printErrorMessages(&errorData);
         #endif
     }
@@ -452,5 +444,6 @@ int main(int argc, char* argv[]) {
     #if defined(_WIN32)
     WSACleanup();
     #endif
+    enableEcho();
     printf("Finished.\n");
 }

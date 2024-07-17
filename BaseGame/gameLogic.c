@@ -247,14 +247,12 @@ void deathCheck(node* player, screenData screen) {
                 player->xPos, player->yPos, player->xPos + player->xMov, player->yPos + player->yMov);
         gameOver(&screen, msg);
     }
-    // Currently messing with this, can look at BaseGame version for reference
     if (screen.map[(player->yPos + player->yMov) * screen.width + player->xPos + player->xMov] == 'o' ||
             screen.map[(player->yPos + player->yMov) * screen.width + player->xPos + player->xMov] == 'O') {
         if (player->yMov == 0 && player->xMov == 0) {
-            //gameOver(&screen, "Zero velocity death\n");
-        } else {
-            gameOver(&screen, "Collided with self\n");
+            gameOver(&screen, "Zero velocity death\n");
         }
+        gameOver(&screen, "Collided with self\n");
     }
 }
 
