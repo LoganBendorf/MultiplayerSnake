@@ -1,8 +1,12 @@
 
+#RECVFROM() in main game loop is currently blocking, reason is unknown
+
+
+
 # Players have no velocity when the game starts and die instantly, maybe remove zero velocity deaths
 
 # Issue of players spawning on apple
-# Server and client players spawn at the same position
+    https://www.google.com/search?q=how+to+have+random+generate+the+same+output+on+difference+machines+c&oq=how+to+have+random+generate+the+same+output+on+difference+machines+c&gs_lcrp=EgZjaHJvbWUyBggAEEUYOdIBCTEyODY1ajBqN6gCALACAA&sourceid=chrome&ie=UTF-8
 
 # srand()?
 

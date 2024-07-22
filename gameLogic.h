@@ -29,6 +29,7 @@ typedef struct node {
     struct node* next;
     bool hasTail;
     int score;
+    char id;
 } node;
 
 typedef struct screenData {

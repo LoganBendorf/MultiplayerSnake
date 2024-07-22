@@ -1,0 +1,10 @@
+
+
+Events:
+    double speed
+    zoom in
+    rainbow
+    obsticles
+
+
+

@@ -1,4 +1,6 @@
 
+#define DEBUG_START_INFO false
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -286,8 +288,10 @@ int main(int argc, char* argv[]) {
     printf("random seed = %d\n", randomSeed);
     srand(randomSeed);
 
-    printScreen(screen);
+    #if DEBUG_START_INFO != true
+    //printScreen(screen);
     disableEcho();
+    #endif
 
     node* player = (node*) Malloc(sizeof(node));
     player->xMov = 0;
@@ -299,17 +303,19 @@ int main(int argc, char* argv[]) {
     player->next = NULL;
     player->hasTail = false;
     player->score = 0;
+    player->id = 1;
 
-    node* server = (node*) Malloc(sizeof(node));
-    server->xMov = 0;
-    server->yMov = 0;
-    server->prevXMov = 0;
-    server->prevYMov = 0;
-    server->xPos = serverStartingPosition % screen.width;
-    server->yPos = serverStartingPosition / screen.width;
-    server->next = NULL;
-    server->hasTail = false;
-    server->score = 0;
+    node* other = (node*) Malloc(sizeof(node));
+    other->xMov = 0;
+    other->yMov = 0;
+    other->prevXMov = 0;
+    other->prevYMov = 0;
+    other->xPos = serverStartingPosition % screen.width;
+    other->yPos = serverStartingPosition / screen.width;
+    other->next = NULL;
+    other->hasTail = false;
+    other->score = 0;
+    other->id = 0;
 
     errorInfo errorData = {0, 0, 0};
 
@@ -381,9 +387,16 @@ int main(int argc, char* argv[]) {
 
     printf("Receieved start time, starting game\n");
 
+    #if DEBUG_START_INFO == true
+    enableEcho();
+    exit(1);
+    #endif
     //////////////// GAME LOOP ////////////////////
     #define DEBUG false
+    int bytesReceived = 0;
     while (true) {
+        char readBuffer[128] = {0};
+        char sendBuffer[128] = {0};
         clock_gettime(CLOCK_MONOTONIC, &currentTime);
 
         long long elapsedTime = diffMilli(&lastTime, &currentTime);
@@ -397,37 +410,83 @@ int main(int argc, char* argv[]) {
 
         lastTime = currentTime;
 
-        shouldBuffer = false;
+        shouldBuffer = false;      
         getInput(player, shouldBuffer, player->hasTail);
-        /*if (!gameStart) {
-            if (player->xMov == 0 && player->yMov == 0) {
-                continue;}
-            gameStart = true;
-        }*/
+
+        snprintf(sendBuffer, 128, "%d,%d,", player->xMov, player->yMov);
+        printf("sending %s\n", sendBuffer);
+        int bytes = sendto(serverSocket,
+                    sendBuffer, strlen(sendBuffer),
+                    0,
+                    serverAddress->ai_addr, serverAddress->ai_addrlen);
+        // RECVFROM blocks btw
+        printf("recvfrom\n");
+        bytesReceived = recvfrom(serverSocket, readBuffer, strlen(readBuffer), 0, (struct sockaddr*) &serverAddressStorage, &serverLen);
+        printf("after\n");
+        if (bytesReceived == 0) {
+            printf("bruh\n");
+            exit(1);
+        }
+        printf("received %d bytes: %s\n", bytesReceived, readBuffer);
+        bytesReceived = 0;
+
+        pointer = readBuffer;
+        quinter = strstr(pointer, ",");
+        char otherXMovString[8];
+        snprintf(otherXMovString, quinter - pointer + 1, "%s", pointer);
+        pointer = quinter + 1;
+        quinter = strstr(pointer, ",");
+        char otherYMovString[8];
+        snprintf(otherYMovString, quinter - pointer + 1, "%s", pointer);
+
+        other->prevXMov = other->xMov;
+        other->prevYMov = other->yMov;
+
+        other->xMov = atoi(otherXMovString);
+        other->yMov = atoi(otherYMovString);
+
+        if (other->hasTail) {
+            if (other->xMov == -other->prevXMov) {
+                other->xMov = other->prevXMov;
+            }
+            if (other->yMov == -other->prevYMov) {
+                other->yMov = other->prevYMov;
+            }
+        }
+     
 
         addErrorMsgFormat(errorData, "Player at (%d, %d). Velocity = (%d, %d). PrevMov = (%d, %d)\n", 
                 player->xPos, player->yPos, player->xMov, player->yMov, player->prevXMov, player->prevYMov);
 
         deathCheck(player, screen);
+        deathCheck(other, screen);
 
         // Update head
         player->xPos += player->xMov;
         player->yPos += player->yMov;
+        other->xPos += other->xMov;
+        other->yPos += other->yMov;
 
         updateTailMovement(player, &errorData, &screen);
+        updateTailMovement(other, &errorData, &screen);
         
         if (appleOnMap) {
             appleOnMap = addTailPieceIfApple(player, &errorData, screen);
+            appleOnMap = addTailPieceIfApple(other, &errorData, screen);
         }
 
         // Draw head
         screen.map[player->yPos * screen.width + player->xPos] = 'O';
-        if (!player->hasTail) {
+        if (!player->hasTail && player->xMov != 0 && player->yMov != 0) {
             screen.map[(player->yPos - player->yMov) * screen.width + player->xPos - player->xMov] = ' ';
         }
+        screen.map[other->yPos * screen.width + other->xPos] = 'O';
+        if (!other->hasTail && other->xMov != 0 && other->yMov != 0) {
+            screen.map[(other->yPos - other->yMov) * screen.width + other->xPos - other->xMov] = ' ';
+        }
 
-        printf("draw called\n");
         drawTail(player, &errorData, &screen);
+        drawTail(other, &errorData, &screen);
 
         while (!appleOnMap) {
             appleOnMap = addApples(&screen);
