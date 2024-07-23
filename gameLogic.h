@@ -29,7 +29,6 @@ typedef struct node {
     struct node* next;
     bool hasTail;
     int score;
-    char id;
 } node;
 
 typedef struct screenData {
@@ -38,6 +37,10 @@ typedef struct screenData {
     char width;
     char height;
 } screenData;
+
+typedef enum {
+    CLIENT, SERVER
+} CLIENT_OR_SERVER;
 
 char getch_nonblock();
 
@@ -60,7 +63,7 @@ bool addApples(screenData* screen);
 
 void drawTail(node* player, errorInfo* errorData, screenData* screen);
 
-void deathCheck(node* player, screenData screen);
+void deathCheck(node* player, screenData screen, CLIENT_OR_SERVER cOs);
 
 void catchSigThenExit(int sigNum);
 

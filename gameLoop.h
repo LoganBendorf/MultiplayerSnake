@@ -32,8 +32,8 @@
 #include "timeHelpers.h"
 
 void gameLoop   (
-                struct timespec lastTime, struct timespec currentTime, int listenSocket, int otherSocket, struct addrinfo* otherAddress,
-                struct sockaddr* otherAddressStorage, socklen_t otherLen, node* player, node* other, screenData screen
+                struct timespec* lastTimePtr, struct timespec* currentTimePtr, int listenSocket, int otherSocket, struct addrinfo** otherAddressPtr,
+                struct sockaddr* otherAddressStoragePtr, socklen_t otherLen, node** playerPtr, node** otherPtr, screenData screen, CLIENT_OR_SERVER cOs
                 );
 
 #endif

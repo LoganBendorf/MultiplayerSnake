@@ -8,6 +8,12 @@
         "cstdlib": "c",
         "cmath": "c",
         "stdio.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "timehelpers.h": "c",
+        "bit": "c",
+        "compare": "c",
+        "limits": "c",
+        "new": "c",
+        "errorfunctions.h": "c"
     }
 }

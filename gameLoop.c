@@ -30,14 +30,24 @@
 #include "timeHelpers.h"
 
 void gameLoop   (
-                struct timespec lastTime, struct timespec currentTime, int listenSocket, int otherSocket, struct addrinfo* otherAddress,
-                struct sockaddr* otherAddressStorage, socklen_t otherLen, node* player, node* other, screenData screen
+                struct timespec* lastTimePtr, struct timespec* currentTimePtr, int listenSocket, int otherSocket, struct addrinfo** otherAddressPtr,
+                struct sockaddr* otherAddressStoragePtr, socklen_t otherLen, node** playerPtr, node** otherPtr, screenData screen, CLIENT_OR_SERVER cOs
                 ) {
+    struct timespec lastTime = *lastTimePtr;
+    struct timespec currentTime = *currentTimePtr;
+
+    struct addrinfo* otherAddress = *otherAddressPtr;
+    //struct sockaddr otherAddressStorage = *otherAddressStoragePtr;
+
+    node* player = *playerPtr;
+    node* other = *otherPtr;
+    
     errorInfo errorData = {0, 0, 0};
     bool appleOnMap = false;
     while (true) {
-        char readBuffer[128] = {0};
-        char sendBuffer[128] = {0};
+        #define BUFFER_SIZE 128
+        char readBuffer[BUFFER_SIZE] = {0};
+        char sendBuffer[BUFFER_SIZE] = {0};
         clock_gettime(CLOCK_MONOTONIC, &currentTime);
 
         long long elapsedTime = diffMilli(&lastTime, &currentTime);
@@ -54,22 +64,27 @@ void gameLoop   (
         shouldBuffer = false;      
         getInput(player, shouldBuffer, player->hasTail);
 
-        snprintf(sendBuffer, 128, "%d,%d,", player->xMov, player->yMov);
-        printf("sending %s\n", sendBuffer);
-        int bytes = sendto(otherSocket,
-                    sendBuffer, strlen(sendBuffer),
-                    0,
-                    otherAddress->ai_addr, otherAddress->ai_addrlen);
-        // RECVFROM blocks btw
-        printf("recvfrom\n");
-        int bytesReceived = recvfrom(otherSocket, readBuffer, strlen(readBuffer), 0, (struct sockaddr*) &otherAddressStorage, &otherLen);
-        printf("after\n");
-        if (bytesReceived == 0) {
-            printf("bruh\n");
-            exit(1);
+        snprintf(sendBuffer, BUFFER_SIZE, "%d,%d,", player->xMov, player->yMov);
+        if (strlen(sendBuffer) == 0) printf("sendbuffer empty\n"), exit(1);
+        int bytesSent = 0;
+        int bytesReceived = 0;
+        if (cOs == CLIENT) {
+            bytesSent = sendto(otherSocket, sendBuffer, strlen(sendBuffer), 0, otherAddress->ai_addr, otherAddress->ai_addrlen);
+            if (bytesSent == 0) printf("bytesSent 0\n"), exit(1);
+            printf("bytes were sent\n");
+            bytesReceived = recvfrom(otherSocket, readBuffer, BUFFER_SIZE, 0, otherAddressStoragePtr, &otherLen);
+
+        } else if (cOs == SERVER) {
+            bytesReceived = recvfrom(listenSocket, readBuffer, BUFFER_SIZE, 0, otherAddressStoragePtr, &otherLen);
+            bytesSent = sendto(otherSocket, sendBuffer, strlen(sendBuffer), 0, otherAddress->ai_addr, otherAddress->ai_addrlen);
+            if (bytesSent == 0) printf("bytesSent 0\n"), exit(1);
+            printf("bytes were sent\n");
         }
-        printf("received %d bytes: %s\n", bytesReceived, readBuffer);
-        bytesReceived = 0;
+
+        printf("read buffer = (%s)\n", readBuffer);
+        if (bytesReceived == 0) printf("bytesReceived 0\n"), exit(1);
+        
+        
 
         char* pointer = readBuffer;
         char* quinter = strstr(pointer, ",");
@@ -99,8 +114,8 @@ void gameLoop   (
         addErrorMsgFormat(errorData, "Player at (%d, %d). Velocity = (%d, %d). PrevMov = (%d, %d)\n", 
                 player->xPos, player->yPos, player->xMov, player->yMov, player->prevXMov, player->prevYMov);
 
-        deathCheck(player, screen);
-        deathCheck(other, screen);
+        deathCheck(player, screen, cOs);
+        deathCheck(other, screen, !cOs);
 
         // Update head
         player->xPos += player->xMov;

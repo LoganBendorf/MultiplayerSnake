@@ -239,14 +239,14 @@ void drawTail(node* player, errorInfo* errorData, screenData* screen) {
 }
 
 // ASSUMES WALLS ARE 1 UNIT THICK
-void deathCheck(node* player, screenData screen) {
+void deathCheck(node* player, screenData screen, CLIENT_OR_SERVER cOs) {
     char msg[128] = {0};
-    char* playerStr = "Player";
+    char* clientStr = "Client";
     char* serverStr = "Server";
     if (player->xPos + player->xMov > (screen.width - 2) || player->xPos + player->xMov < 1 ||
                 player->yPos + player->yMov > (screen.height - 2) || player->yPos + player->yMov  < 1) {
         sprintf(msg, "%s died. Collision death at (%d, %d) moving into (%d, %d)\n", 
-                player->id ? playerStr : serverStr, player->xPos, player->yPos, player->xPos + player->xMov, player->yPos + player->yMov);
+                cOs == CLIENT ? clientStr : serverStr, player->xPos, player->yPos, player->xPos + player->xMov, player->yPos + player->yMov);
         gameOver(&screen, msg);
     }
     // Currently messing with this, can look at BaseGame version for reference
@@ -255,7 +255,7 @@ void deathCheck(node* player, screenData screen) {
         if (player->yMov == 0 && player->xMov == 0) {
             //gameOver(&screen, "Zero velocity death\n");
         } else {
-            sprintf(msg, "%s died. Collided with self\n", player->id ? playerStr : serverStr);
+            sprintf(msg, "%s died. Collided with self\n", cOs == CLIENT ? clientStr : serverStr);
             gameOver(&screen, msg);
         }
     }
