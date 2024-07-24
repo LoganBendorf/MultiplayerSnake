@@ -150,17 +150,22 @@ void gameLoop   (
         }
         
         // Draw head
-        screen.map[player->yPos * screen.width + player->xPos] = 'O';
+        if (cOs == CLIENT) {
+            screen.map[player->yPos * screen.width + player->xPos] = 'O';
+            screen.map[other->yPos * screen.width + other->xPos] = '@';
+        } else if (cOs == SERVER) {
+            screen.map[player->yPos * screen.width + player->xPos] = '@';
+            screen.map[other->yPos * screen.width + other->xPos] = 'O';
+        }
         if (!player->hasTail && player->xMov != 0 || player->yMov != 0) {
             screen.map[(player->yPos - player->yMov) * screen.width + player->xPos - player->xMov] = ' ';
         }
-        screen.map[other->yPos * screen.width + other->xPos] = 'O';
         if (!other->hasTail && other->xMov != 0 || other->yMov != 0) {
             screen.map[(other->yPos - other->yMov) * screen.width + other->xPos - other->xMov] = ' ';
         }
 
-        drawTail(player, &errorData, &screen);
-        drawTail(other, &errorData, &screen);
+        drawTail(player, &errorData, &screen, cOs);
+        drawTail(other, &errorData, &screen, !cOs);
 
         while (!appleOnMap) {
             appleOnMap = addApples(&screen);

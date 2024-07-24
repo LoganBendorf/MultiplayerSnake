@@ -222,12 +222,17 @@ bool addApples(screenData* screen) {
     return true;
 }
 
-void drawTail(node* player, errorInfo* errorData, screenData* screen) {
+void drawTail(node* player, errorInfo* errorData, screenData* screen, CLIENT_OR_SERVER cOs) {
     node* tail = player->next;
     node* previous = player;
     bool tailDrawn = false;
     while (tail != NULL) {
-        screen->map[tail->yPos * screen->width + tail->xPos] = 'o';
+        if (cOs == CLIENT) {
+            screen->map[tail->yPos * screen->width + tail->xPos] = 'o';
+        } else if (cOs == SERVER) {
+            screen->map[tail->yPos * screen->width + tail->xPos] = '0';
+        }
+
         if (tail->next == NULL) {
             screen->map[(tail->yPos - previous->prevYMov) * screen->width + tail->xPos - previous->prevXMov] = ' ';
         }
@@ -254,7 +259,8 @@ void deathCheck(node* player, screenData screen, CLIENT_OR_SERVER cOs) {
         gameOver(&screen, msg);
     }
     // Currently messing with this, can look at BaseGame version for reference
-    if (screen.map[(player->yPos + player->yMov) * screen.width + player->xPos + player->xMov] == 'o') {
+    int nextLocation = screen.map[(player->yPos + player->yMov) * screen.width + player->xPos + player->xMov];
+    if (nextLocation == 'o' || nextLocation == '0') {
         if (player->yMov == 0 && player->xMov == 0) {
             //gameOver(&screen, "Zero velocity death\n");
         } else {
@@ -262,7 +268,7 @@ void deathCheck(node* player, screenData screen, CLIENT_OR_SERVER cOs) {
             gameOver(&screen, msg);
         }
     }
-    if (screen.map[(player->yPos + player->yMov) * screen.width + player->xPos + player->xMov] == 'O') {
+    if (nextLocation == 'O' || nextLocation == '@') {
         if (player->yMov == 0 && player->xMov == 0) {
             //do nothing for now
         } else {
@@ -302,16 +308,20 @@ void catchSigThenExit(int sigNum) {
 #define HEIGHT 500
 #define BORDER 25
 #define LINE 2
+
 #define BLUE "#98edfb"
+#define DARK_BLUE "#00008B"
+#define GREEN "#00FF00"
+// if enum or color array is not update when color is added, die
+typedef enum {
+    BLUE_INDEX, DARK_BLUE_INDEX, GREEN_INDEX,
+    COLOR_INDEX_FIRST = BLUE_INDEX, COLOR_INDEX_LAST = GREEN_INDEX
+} colorIndex;
 
 static Display* display;
 static int screen;
 static Window rootWindow;
 static Visual* visual;
-typedef enum {
-    blue, black
-} COLOR;
-COLOR color = blue;
 
 
 // Use pthread for this
@@ -319,8 +329,6 @@ void* fancyInit(void* data) {
     struct threadDataBundle threadData = *((struct threadDataBundle*) data);
     screenData* screenPtr = (screenData*) threadData.screen;
     bool* drawUpdatePtr = (bool*) threadData.drawUpdate;
-
-    XftColor* color_blue = calloc(1, sizeof(XftColor));
 
     if ((display = XOpenDisplay(NULL)) == NULL) {
         fprintf(stderr, "cant open display\n");
@@ -332,8 +340,16 @@ void* fancyInit(void* data) {
     visual = DefaultVisual(display, screen);
     Window main_window = create_window(POSX, POSY, WIDTH, HEIGHT, BORDER);
 
-    create_color(color_blue, BLUE);
-    GC gc = create_gc(LINE, color_blue);
+    char* colorStringArray[] = {BLUE, DARK_BLUE, GREEN};
+    XftColor** colorArray = (XftColor**) malloc(sizeof(XftColor*) * (COLOR_INDEX_LAST + 1));
+
+    for (int i = COLOR_INDEX_FIRST; i <= COLOR_INDEX_LAST; i++) {
+        XftColor* color = calloc(1, sizeof(XftColor));
+        create_color(color, colorStringArray[i]);
+        colorArray[i] = color;
+    }
+
+    GC gc = create_gc(LINE, colorArray[0]);
 
     XSizeHints XSH = {.min_width = WIDTH, .min_height = HEIGHT, .max_width = WIDTH, .max_height = HEIGHT};
     XSH.flags = PMinSize | PMaxSize;
@@ -344,12 +360,15 @@ void* fancyInit(void* data) {
 
     XMapWindow(display, main_window);
 
-    run(gc, screenPtr, color_blue, drawUpdatePtr);
+    run(gc, main_window, screenPtr, colorArray, drawUpdatePtr);
 
     //cleanup
     XUnmapWindow(display, main_window);
     XDestroyWindow(display, main_window);
-    XftColorFree(display, visual, DefaultColormap(display, screen), color_blue);
+    for (int i = COLOR_INDEX_FIRST; i <= COLOR_INDEX_LAST; i++) {
+        XftColorFree(display, visual, DefaultColormap(display, screen), colorArray[i]);
+    }
+    free(colorArray);
 
     XFreeGC(display, gc);
 
@@ -358,11 +377,14 @@ void* fancyInit(void* data) {
     return NULL;
 }
 
-void run(GC gc, screenData* screenPtr, XftColor* color_blue, bool* drawUpdatePtr) {
+void run(GC gc, Window window, screenData* screenPtr, XftColor** colorArray, bool* drawUpdatePtr) {
 
     XEvent ev;
+    XSelectInput(display, window, ExposureMask | KeyPressMask);
 
-    while (!(XNextEvent(display, &ev))) {
+    while (true) {
+
+        XCheckWindowEvent(display, window, ExposureMask, &ev);
 
         XSetForeground(display, gc, BlackPixel(display, screen));
 
@@ -371,12 +393,11 @@ void run(GC gc, screenData* screenPtr, XftColor* color_blue, bool* drawUpdatePtr
         switch(ev.type) {
  
             case Expose:
-                shouldDraw = true;
+                //shouldDraw = true;
             case KeyPress:
                 if (XkbKeycodeToKeysym(display, ev.xkey.keycode, 0, 0) == XK_q) {
                     return;
                 }
-                shouldDraw = true;
             default:
                 break;
         }
@@ -394,24 +415,45 @@ void run(GC gc, screenData* screenPtr, XftColor* color_blue, bool* drawUpdatePtr
                     int squareHeight = HEIGHT / screenPtr->height;
                     switch(screenPtr->map[y * screenPtr->width + x]) {
                         case '#':
-                            XSetForeground(display, gc, color_blue->pixel);
+                            XSetForeground(display, gc, colorArray[BLUE_INDEX]->pixel);
                             drawSquare(x * squareWidth, y * squareHeight, squareWidth, squareHeight, ev.xbutton.window, gc);
-                            XSetForeground(display, gc, BlackPixel(display, screen));
                             //drawBox(i * (squareWidth - 1), j * (squareHeight - 1), squareWidth, squareHeight, ev.xbutton.window, gc);
-                            drawBox(x * squareWidth, y * squareHeight, (squareWidth - 1), (squareHeight - 1), ev.xbutton.window, gc);
                             break;
                         case 'O':
+                            XSetForeground(display, gc, colorArray[DARK_BLUE_INDEX]->pixel);
+                            drawCircleFill(x * squareWidth + squareWidth / 2, y * squareHeight + squareHeight / 2, squareWidth / 3, ev.xbutton.window, gc);
+                            break;
+                        case 'o':
+                            XSetForeground(display, gc, colorArray[DARK_BLUE_INDEX]->pixel);
+                            drawCircleFill(x * squareWidth + squareWidth / 2, y * squareHeight + squareHeight / 2, squareWidth / 4, ev.xbutton.window, gc);
+                            break;
+                        case '@':
+                            XSetForeground(display, gc, colorArray[GREEN_INDEX]->pixel);
+                            drawCircleFill(x * squareWidth + squareWidth / 2, y * squareHeight + squareHeight / 2, squareWidth / 3, ev.xbutton.window, gc);
+                            break;
+                        case '0':
+                            XSetForeground(display, gc, colorArray[GREEN_INDEX]->pixel);
+                            drawCircleFill(x * squareWidth + squareWidth / 2, y * squareHeight + squareHeight / 2, squareWidth / 4, ev.xbutton.window, gc);
+                            break;
+                        case 'a':
+                            XSetForeground(display, gc, BlackPixel(display, screen));
                             drawCircle(x * squareWidth + squareWidth / 2, y * squareHeight + squareHeight / 2, squareWidth / 3, ev.xbutton.window, gc);
-                            drawBox(x * squareWidth, y * squareHeight, (squareWidth - 1), (squareHeight - 1), ev.xbutton.window, gc);
                             break;
                         default: 
-                            drawBox(x * squareWidth, y * squareHeight, (squareWidth - 1), (squareHeight - 1), ev.xbutton.window, gc);
                             break;
                     }
+                    XSetForeground(display, gc, BlackPixel(display, screen));
+                    drawBox(x * squareWidth, y * squareHeight, (squareWidth - 1), (squareHeight - 1), ev.xbutton.window, gc);
                 }
                 printf("\n");
             }
         }
+    }
+}
+
+void drawCircleFill(int xStart, int yStart, int radius, Window window, GC gc) {
+    for (int i = 0; i < radius; i++) {
+        drawCircle(xStart, yStart, radius - i, window, gc);
     }
 }
 
@@ -471,16 +513,14 @@ void drawBox(int xStart, int yStart, int width, int height, Window window, GC gc
 }
 
 
-void create_color(XftColor* color_blue, const char* name) {
+void create_color(XftColor* color, char* name) {
 
-    if (!XftColorAllocName(display, visual, DefaultColormap(display, screen), name, color_blue)) {
+    if (!XftColorAllocName(display, visual, DefaultColormap(display, screen), name, color)) {
         fprintf(stderr, "cant allocate color\n");
         exit(1);
     }
 
-    color_blue->pixel |= 0xff << 24;
-
-     
+    color->pixel |= 0xff << 24;
 }
 
 Window create_window(int x, int y, int width, int height, int border) {

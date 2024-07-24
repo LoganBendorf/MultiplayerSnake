@@ -66,7 +66,7 @@ bool addTailPieceIfApple(node* player, errorInfo* errorData, screenData screen);
 
 bool addApples(screenData* screen);
 
-void drawTail(node* player, errorInfo* errorData, screenData* screen);
+void drawTail(node* player, errorInfo* errorData, screenData* screen, CLIENT_OR_SERVER cOs);
 
 void deathCheck(node* player, screenData screen, CLIENT_OR_SERVER cOs);
 
@@ -82,13 +82,14 @@ void catchSigThenExit(int sigNum);
     #include <X11/Xft/Xft.h>
 
     void* fancyInit(void* data);
-    void run(GC gc, screenData* screenPtr, XftColor* color_blue, bool* drawUpdate);
+    void run(GC gc, Window window, screenData* screenPtr, XftColor** colorArray, bool* drawUpdate);
 
     void drawCircle(int xStart, int yStart, int radius, Window window, GC gc);
+    void drawCircleFill(int xStart, int yStart, int radius, Window window, GC gc);
     void drawSquare(int xStart, int yStart, int width, int height, Window window, GC gc);
     void drawBox(int xStart, int yStart, int width, int height, Window window, GC gc);
 
-    void create_color(XftColor* color_blue, const char* name);
+    void create_color(XftColor* color, char* name);
     Window create_window(int x, int y, int width, int height, int border);
     GC create_gc(int line_width, XftColor* foreground);
     #endif
