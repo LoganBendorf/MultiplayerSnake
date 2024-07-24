@@ -287,7 +287,7 @@ int main(int argc, char* argv[]) {
     snprintf(temp, quinter - pointer + 1, "%s", pointer);
     int randomSeed = atoi(temp);
     printf("random seed = %d\n", randomSeed);
-    srand(randomSeed);
+    my_srand(randomSeed);
 
     #if DEBUG_START_INFO != true
     //printScreen(screen);

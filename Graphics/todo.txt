@@ -1,0 +1,9 @@
+https://www.google.com/search?q=Bresenham&sourceid=chrome&ie=UTF-8
+
+try wayland?
+
+
+
+Very far into the future:
+    3D
+    Ray Tracing: https://raytracing.github.io/books/RayTracingInOneWeekend.html

@@ -14,6 +14,8 @@
         "compare": "c",
         "limits": "c",
         "new": "c",
-        "errorfunctions.h": "c"
+        "errorfunctions.h": "c",
+        "xkblib.h": "c",
+        "ft2build.h": "c"
     }
 }

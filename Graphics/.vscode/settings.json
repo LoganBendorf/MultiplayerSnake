@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "ioctl.h": "c",
+        "math.h": "c",
+        "graphics.h": "c",
+        "termios.h": "c",
+        "unistd.h": "c",
+        "xlib.h": "c"
+    }
+}

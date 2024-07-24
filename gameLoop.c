@@ -25,6 +25,11 @@
 #include <errno.h>
 #endif
 
+#define FANCY_GRAPHICS true
+#if FANCY_GRAPHICS == true
+#include <pthread.h>
+#endif
+
 #include "gameLogic.h"
 #include "errorFunctions.h"
 #include "timeHelpers.h"
@@ -44,6 +49,17 @@ void gameLoop   (
     
     errorInfo errorData = {0, 0, 0};
     bool appleOnMap = false;
+    bool drawUpdate = false;
+
+    struct threadDataBundle data = {.drawUpdate = &drawUpdate, .screen = &screen};
+
+    #if FANCY_GRAPHICS == true
+    if (cOs == CLIENT) {
+        pthread_t graphicsThread;
+        pthread_create(&graphicsThread, NULL, fancyInit, (void*) &data);
+    }
+    #endif
+
     while (true) {
         #define BUFFER_SIZE 128
         char readBuffer[BUFFER_SIZE] = {0};
@@ -128,16 +144,18 @@ void gameLoop   (
         
         if (appleOnMap) {
             appleOnMap = addTailPieceIfApple(player, &errorData, screen);
+        }
+        if (appleOnMap) {
             appleOnMap = addTailPieceIfApple(other, &errorData, screen);
         }
-
+        
         // Draw head
         screen.map[player->yPos * screen.width + player->xPos] = 'O';
-        if (!player->hasTail && player->xMov != 0 && player->yMov != 0) {
+        if (!player->hasTail && player->xMov != 0 || player->yMov != 0) {
             screen.map[(player->yPos - player->yMov) * screen.width + player->xPos - player->xMov] = ' ';
         }
         screen.map[other->yPos * screen.width + other->xPos] = 'O';
-        if (!other->hasTail && other->xMov != 0 && other->yMov != 0) {
+        if (!other->hasTail && other->xMov != 0 || other->yMov != 0) {
             screen.map[(other->yPos - other->yMov) * screen.width + other->xPos - other->xMov] = ' ';
         }
 
@@ -149,6 +167,8 @@ void gameLoop   (
         }
 
         printScreen(screen);
+        // for graphics thread
+        drawUpdate = true;
 
         #if DEBUG_GAME == true
         printErrorMessages(&errorData);

@@ -239,10 +239,10 @@ int main(int argc, char* argv[]) {
     screenData screen = {0, WIDTH, HEIGHT};
 
     int randomSeed = time(NULL);
-    srand(randomSeed);
+    my_srand(randomSeed);
 
-    int randomX = rand() % (screen.width - 4);
-    int randomY = rand() % ((screen.height - 4) / 2);
+    int randomX = my_rand() % (screen.width - 4);
+    int randomY = my_rand() % ((screen.height - 4) / 2);
     randomX += 2;
     randomY += 2;
     int serverStartingPosition = randomY * screen.width + randomX;
@@ -253,13 +253,16 @@ int main(int argc, char* argv[]) {
     strcat(sendBuffer, charServerStartingPosition);
 
 
-    randomX = rand() % (screen.width - 4);
-    randomY = rand() % ((screen.height - 4) / 2 + screen.height / 2);
+    randomX = my_rand() % (screen.width - 4);
+    randomY = my_rand() % ((screen.height - 4) / 2 + screen.height / 2);
     randomX += 1;
     randomY += 1;
     int clientStartingPosition = randomY * screen.width + randomX;
     char charClientStartingPosition[8] = {0};
     snprintf(charClientStartingPosition, 8, "%d", clientStartingPosition);
+
+    // Reset random so it's equal with client
+    my_srand(randomSeed);
                           
     strcat(sendBuffer, "\nclientStartingPosition: ");
     strcat(sendBuffer, charClientStartingPosition);
