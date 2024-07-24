@@ -40,7 +40,9 @@ typedef struct screenData {
 
 struct threadDataBundle {
     bool* drawUpdate;
-    screenData* screen;
+    screenData* screenPtr;
+    node** clientPtr;
+    node** serverPtr;
 };
 
 typedef enum {
@@ -81,11 +83,12 @@ void catchSigThenExit(int sigNum);
     #include <X11/Xatom.h>
     #include <X11/Xft/Xft.h>
 
-    void* fancyInit(void* data);
-    void run(GC gc, Window window, screenData* screenPtr, XftColor** colorArray, bool* drawUpdate);
+    void* fancyInit(void* threadData);
+    void run(GC gc, Window window, XftColor** colorArray, struct threadDataBundle* threadData);
 
-    void drawCircle(int xStart, int yStart, int radius, Window window, GC gc);
+    void drawLine(int x1, int y1, int x2, int y2, Window window, GC gc);
     void drawCircleFill(int xStart, int yStart, int radius, Window window, GC gc);
+    void drawCircle(int xStart, int yStart, int radius, Window window, GC gc);
     void drawSquare(int xStart, int yStart, int width, int height, Window window, GC gc);
     void drawBox(int xStart, int yStart, int width, int height, Window window, GC gc);
 

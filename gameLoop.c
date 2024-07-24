@@ -51,7 +51,15 @@ void gameLoop   (
     bool appleOnMap = false;
     bool drawUpdate = false;
 
-    struct threadDataBundle data = {.drawUpdate = &drawUpdate, .screen = &screen};
+    struct threadDataBundle data = {.drawUpdate = &drawUpdate,
+                                    .screenPtr = &screen};
+    if (cOs == CLIENT) {
+        data.clientPtr = &player;
+        data.serverPtr = &other;
+    } else if (cOs == SERVER) {
+        data.clientPtr = &other;
+        data.serverPtr = &player;
+    }
 
     #if FANCY_GRAPHICS == true
     if (cOs == CLIENT) {

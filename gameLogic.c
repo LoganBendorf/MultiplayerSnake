@@ -311,10 +311,12 @@ void catchSigThenExit(int sigNum) {
 
 #define BLUE "#98edfb"
 #define DARK_BLUE "#00008B"
+#define RED "#FF0000"
+#define BROWN "#964B00"
 #define GREEN "#00FF00"
 // if enum or color array is not update when color is added, die
 typedef enum {
-    BLUE_INDEX, DARK_BLUE_INDEX, GREEN_INDEX,
+    BLUE_INDEX, DARK_BLUE_INDEX, RED_INDEX, BROWN_INDEX, GREEN_INDEX,
     COLOR_INDEX_FIRST = BLUE_INDEX, COLOR_INDEX_LAST = GREEN_INDEX
 } colorIndex;
 
@@ -325,10 +327,7 @@ static Visual* visual;
 
 
 // Use pthread for this
-void* fancyInit(void* data) {
-    struct threadDataBundle threadData = *((struct threadDataBundle*) data);
-    screenData* screenPtr = (screenData*) threadData.screen;
-    bool* drawUpdatePtr = (bool*) threadData.drawUpdate;
+void* fancyInit(void* threadData) {
 
     if ((display = XOpenDisplay(NULL)) == NULL) {
         fprintf(stderr, "cant open display\n");
@@ -340,7 +339,7 @@ void* fancyInit(void* data) {
     visual = DefaultVisual(display, screen);
     Window main_window = create_window(POSX, POSY, WIDTH, HEIGHT, BORDER);
 
-    char* colorStringArray[] = {BLUE, DARK_BLUE, GREEN};
+    char* colorStringArray[] = {BLUE, DARK_BLUE, RED, BROWN, GREEN};
     XftColor** colorArray = (XftColor**) malloc(sizeof(XftColor*) * (COLOR_INDEX_LAST + 1));
 
     for (int i = COLOR_INDEX_FIRST; i <= COLOR_INDEX_LAST; i++) {
@@ -360,7 +359,7 @@ void* fancyInit(void* data) {
 
     XMapWindow(display, main_window);
 
-    run(gc, main_window, screenPtr, colorArray, drawUpdatePtr);
+    run(gc, main_window, colorArray, (struct threadDataBundle*) threadData);
 
     //cleanup
     XUnmapWindow(display, main_window);
@@ -377,7 +376,12 @@ void* fancyInit(void* data) {
     return NULL;
 }
 
-void run(GC gc, Window window, screenData* screenPtr, XftColor** colorArray, bool* drawUpdatePtr) {
+void run(GC gc, Window window, XftColor** colorArray, struct threadDataBundle* threadData) {
+    struct threadDataBundle data = *threadData;
+    screenData* screenPtr = data.screenPtr;
+    bool* drawUpdatePtr = data.drawUpdate;
+    node* client = *data.clientPtr;
+    node* server = *data.serverPtr;
 
     XEvent ev;
     XSelectInput(display, window, ExposureMask | KeyPressMask);
@@ -408,45 +412,112 @@ void run(GC gc, Window window, screenData* screenPtr, XftColor** colorArray, boo
         }
 
         if (shouldDraw) {
-            XClearWindow(display, ev.xbutton.window);
             for (int y = 0; y < screenPtr->height; y++) {
                 for (int x = 0; x < screenPtr->width; x++) {
                     int squareWidth = WIDTH / screenPtr->width;
                     int squareHeight = HEIGHT / screenPtr->height;
+                    // Centered
+                    int itemStartX = x * squareWidth + squareWidth / 2;
+                    int itemStartY = y * squareHeight + squareHeight / 2;
+
+                    int smallRadius = squareWidth / 4;
+                    int largeRadius = squareWidth / 3;
+                    
+                    #define clearSquare(x, y, w, h, window, gc) do { \
+                        XSetForeground(display, gc, WhitePixel(display, screen)); \
+                        drawSquare(x, y, w, h, window, gc); \
+                    } while(0)
+
                     switch(screenPtr->map[y * screenPtr->width + x]) {
                         case '#':
                             XSetForeground(display, gc, colorArray[BLUE_INDEX]->pixel);
                             drawSquare(x * squareWidth, y * squareHeight, squareWidth, squareHeight, ev.xbutton.window, gc);
-                            //drawBox(i * (squareWidth - 1), j * (squareHeight - 1), squareWidth, squareHeight, ev.xbutton.window, gc);
                             break;
                         case 'O':
+                            clearSquare(x * squareWidth, y * squareHeight, squareWidth, squareHeight, ev.xbutton.window, gc);
                             XSetForeground(display, gc, colorArray[DARK_BLUE_INDEX]->pixel);
-                            drawCircleFill(x * squareWidth + squareWidth / 2, y * squareHeight + squareHeight / 2, squareWidth / 3, ev.xbutton.window, gc);
+                            drawCircleFill(itemStartX, itemStartY, largeRadius, ev.xbutton.window, gc);
                             break;
                         case 'o':
+                            clearSquare(x * squareWidth, y * squareHeight, squareWidth, squareHeight, ev.xbutton.window, gc);
                             XSetForeground(display, gc, colorArray[DARK_BLUE_INDEX]->pixel);
-                            drawCircleFill(x * squareWidth + squareWidth / 2, y * squareHeight + squareHeight / 2, squareWidth / 4, ev.xbutton.window, gc);
+                            drawCircleFill(itemStartX, itemStartY, smallRadius, ev.xbutton.window, gc);
                             break;
                         case '@':
+                            clearSquare(x * squareWidth, y * squareHeight, squareWidth, squareHeight, ev.xbutton.window, gc);
                             XSetForeground(display, gc, colorArray[GREEN_INDEX]->pixel);
-                            drawCircleFill(x * squareWidth + squareWidth / 2, y * squareHeight + squareHeight / 2, squareWidth / 3, ev.xbutton.window, gc);
+                            drawCircleFill(itemStartX, itemStartY, largeRadius, ev.xbutton.window, gc);
                             break;
                         case '0':
+                            clearSquare(x * squareWidth, y * squareHeight, squareWidth, squareHeight, ev.xbutton.window, gc);
                             XSetForeground(display, gc, colorArray[GREEN_INDEX]->pixel);
-                            drawCircleFill(x * squareWidth + squareWidth / 2, y * squareHeight + squareHeight / 2, squareWidth / 4, ev.xbutton.window, gc);
+                            drawCircleFill(itemStartX, itemStartY, smallRadius, ev.xbutton.window, gc);
                             break;
                         case 'a':
-                            XSetForeground(display, gc, BlackPixel(display, screen));
-                            drawCircle(x * squareWidth + squareWidth / 2, y * squareHeight + squareHeight / 2, squareWidth / 3, ev.xbutton.window, gc);
+                            clearSquare(x * squareWidth, y * squareHeight, squareWidth, squareHeight, ev.xbutton.window, gc);
+                            XSetForeground(display, gc, colorArray[RED_INDEX]->pixel);
+                            drawCircleFill(itemStartX, itemStartY, smallRadius, ev.xbutton.window, gc);
+                            XSetForeground(display, gc, colorArray[BROWN_INDEX]->pixel);
+                            for (int i = -2; i < 3; i++) {
+                                drawLine(itemStartX + smallRadius/2 + i, itemStartY - smallRadius/2, 
+                                        itemStartX + smallRadius/2 + 10 + i, itemStartY - smallRadius/2 - 10, 
+                                        ev.xbutton.window, gc);
+                            }
                             break;
                         default: 
+                            clearSquare(x * squareWidth, y * squareHeight, squareWidth, squareHeight, ev.xbutton.window, gc);
                             break;
                     }
                     XSetForeground(display, gc, BlackPixel(display, screen));
                     drawBox(x * squareWidth, y * squareHeight, (squareWidth - 1), (squareHeight - 1), ev.xbutton.window, gc);
                 }
-                printf("\n");
             }
+        }
+    }
+}
+
+void drawLine(int x1, int y1, int x2, int y2, Window window, GC gc) {
+
+    // Point slope y1 - y2 = m(x1-x2)
+    // Slope intercept = y = mx + b
+    if (x2 -x1 == 0) {
+        // Can also use parametric function for nice thick lines, just decrease the amount t increases i.e. from .002 to .0002
+        float xParameter = x2 - x1;
+        float yParamater = y2 - y1;
+
+        for(float t = 0; t < 1; t += .002) {
+            int x = xParameter * t +x1;
+            int y = yParamater * t +y1;
+            XDrawPoint(display, window, gc, x, y);
+        }
+        return;
+    }
+    float m = (float) (y1-y2) / (float) (x1-x2);
+    int larger = x1;
+    int smaller = x2;
+    if (x1 < x2) {
+        larger = x2;
+        smaller = x1;
+    }
+    for (int x = smaller; x <= larger; x++) {
+        int y = round(m * (x - x1) + y1);
+        XDrawPoint(display, window, gc, x, y);
+
+        //if (intrp_opt == DONT_INTERPOLATE) {
+        //    continue;
+        //}
+
+        if (x==smaller){
+            continue;
+        }
+        if (m < 0) {
+            for (int i = 0; i < -m; i++) {
+                XDrawPoint(display, window, gc, x, y - i);
+            }
+        } else {
+            for (int i = 0; i < m; i++) {
+                XDrawPoint(display, window, gc, x, y - i);
+            }   
         }
     }
 }
