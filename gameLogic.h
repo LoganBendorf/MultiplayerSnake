@@ -38,16 +38,17 @@ typedef struct screenData {
     char height;
 } screenData;
 
+
+typedef enum {
+    CLIENT, SERVER
+} CLIENT_OR_SERVER;
 struct threadDataBundle {
     bool* drawUpdate;
     screenData* screenPtr;
     node** clientPtr;
     node** serverPtr;
+    CLIENT_OR_SERVER cOs;
 };
-
-typedef enum {
-    CLIENT, SERVER
-} CLIENT_OR_SERVER;
 
 char getch_nonblock();
 
@@ -60,7 +61,7 @@ void printScreen(screenData screen);
 
 void gameOver(screenData* screen, char* msg);
 
-void getInput(node* player, bool shouldBuffer, bool playerHasTail);
+void getInput(node* player, bool shouldBuffer, char directKey);
 
 void updateTailMovement(node* player, errorInfo* errorData, screenData* screen);
 

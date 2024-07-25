@@ -50,9 +50,11 @@ void gameLoop   (
     errorInfo errorData = {0, 0, 0};
     bool appleOnMap = false;
     bool drawUpdate = false;
+    bool shouldBuffer = true;
 
     struct threadDataBundle data = {.drawUpdate = &drawUpdate,
-                                    .screenPtr = &screen};
+                                    .screenPtr = &screen,
+                                    .cOs = cOs};
     if (cOs == CLIENT) {
         data.clientPtr = &player;
         data.serverPtr = &other;
@@ -76,9 +78,9 @@ void gameLoop   (
 
         long long elapsedTime = diffMilli(&lastTime, &currentTime);
 
-        bool shouldBuffer = true;
+        shouldBuffer = true;
         if (elapsedTime > 400 && shouldBuffer) {
-            getInput(player, shouldBuffer, player->hasTail);}
+            getInput(player, shouldBuffer, 0);}
 
         if (elapsedTime < 1000) {
             continue;}
@@ -86,7 +88,7 @@ void gameLoop   (
         lastTime = currentTime;
 
         shouldBuffer = false;      
-        getInput(player, shouldBuffer, player->hasTail);
+        getInput(player, shouldBuffer, 0);
 
         snprintf(sendBuffer, BUFFER_SIZE, "%d,%d,", player->xMov, player->yMov);
         if (strlen(sendBuffer) == 0) printf("sendbuffer empty\n"), exit(1);

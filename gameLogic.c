@@ -103,10 +103,13 @@ void gameOver(screenData* screen, char* msg) {
     exit(1);
 }
 
-void getInput(node* player, bool shouldBuffer, bool playerHasTail) {
+void getInput(node* player, bool shouldBuffer, char directKey) {
 
-    char input = 0;
-    input = getch_nonblock();
+    
+    char input = directKey;
+    if (directKey == 0) {
+        input = getch_nonblock();
+    };
 
     // Measuring input is separate from assigning player movement to allow for buffering
     int xInput = -1 * (input == 'a') + 1 * (input == 'd');
@@ -121,11 +124,11 @@ void getInput(node* player, bool shouldBuffer, bool playerHasTail) {
             return;
         }
         return;
-    } else {
-        if (xInput == 0 && yInput == 0) {
-            xInput = xMovBuffer;
-            yInput = yMovBuffer;
-        }
+    }
+    
+    if (xInput == 0 && yInput == 0) {
+        xInput = xMovBuffer;
+        yInput = yMovBuffer;
     }
 
     if (xInput == 0 && yInput == 0) {
@@ -140,7 +143,7 @@ void getInput(node* player, bool shouldBuffer, bool playerHasTail) {
     player->xMov = xInput;
     player->yMov = yInput;
 
-    if (playerHasTail) {
+    if (player->hasTail) {
         if (player->xMov == -player->prevXMov) {
             player->xMov = player->prevXMov;
         }
@@ -382,6 +385,7 @@ void run(GC gc, Window window, XftColor** colorArray, struct threadDataBundle* t
     bool* drawUpdatePtr = data.drawUpdate;
     node* client = *data.clientPtr;
     node* server = *data.serverPtr;
+    CLIENT_OR_SERVER cOs = data.cOs;
 
     XEvent ev;
     XSelectInput(display, window, ExposureMask | KeyPressMask);
@@ -395,19 +399,30 @@ void run(GC gc, Window window, XftColor** colorArray, struct threadDataBundle* t
         drawSquare(x, y, w, h, window, gc); \
     } while(0)
     while (true) {
-        XCheckWindowEvent(display, window, ExposureMask, &ev);
+        XCheckWindowEvent(display, window, ExposureMask | KeyPressMask, &ev);
 
         XSetForeground(display, gc, BlackPixel(display, screen));
 
         bool shouldDraw = false;
 
-        switch(ev.type) {
+        switch (ev.type) {
  
             case Expose:
                 //shouldDraw = true;
             case KeyPress:
-                if (XkbKeycodeToKeysym(display, ev.xkey.keycode, 0, 0) == XK_q) {
-                    return;
+                char key = 0;
+                switch (XLookupKeysym(&ev.xkey, 0)) {
+                    case XK_q: enableEcho(1); exit(1);
+                    case XK_w: key = 'w'; break;
+                    case XK_a: key = 'a'; break;
+                    case XK_s: key = 's'; break;
+                    case XK_d: key = 'd'; break;
+                    default: break;
+                }
+                if (cOs == CLIENT) {
+                    getInput(client, true, key);
+                } else if (cOs == SERVER) {
+                    getInput(server, true, key);
                 }
             default:
                 break;
