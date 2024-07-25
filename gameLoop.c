@@ -140,8 +140,6 @@ void gameLoop   (
         addErrorMsgFormat(errorData, "Player at (%d, %d). Velocity = (%d, %d). PrevMov = (%d, %d)\n", 
                 player->xPos, player->yPos, player->xMov, player->yMov, player->prevXMov, player->prevYMov);
 
-        deathCheck(player, screen, cOs);
-        deathCheck(other, screen, !cOs);
 
         // Update head
         player->xPos += player->xMov;
@@ -180,6 +178,9 @@ void gameLoop   (
         while (!appleOnMap) {
             appleOnMap = addApples(&screen);
         }
+        
+        deathCheck(player, screen, cOs);
+        deathCheck(other, screen, !cOs);
 
         printScreen(screen);
         // for graphics thread

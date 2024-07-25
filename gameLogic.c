@@ -255,14 +255,14 @@ void deathCheck(node* player, screenData screen, CLIENT_OR_SERVER cOs) {
     char msg[128] = {0};
     char* clientStr = "Client";
     char* serverStr = "Server";
-    if (player->xPos + player->xMov > (screen.width - 2) || player->xPos + player->xMov < 1 ||
-                player->yPos + player->yMov > (screen.height - 2) || player->yPos + player->yMov  < 1) {
+    if (player->xPos > (screen.width - 2) || player->xPos < 1 ||
+                player->yPos > (screen.height - 2) || player->yPos  < 1) {
         sprintf(msg, "%s died. Collision death at (%d, %d) moving into (%d, %d)\n", 
                 cOs == CLIENT ? clientStr : serverStr, player->xPos, player->yPos, player->xPos + player->xMov, player->yPos + player->yMov);
         gameOver(&screen, msg);
     }
     // Currently messing with this, can look at BaseGame version for reference
-    int nextLocation = screen.map[(player->yPos + player->yMov) * screen.width + player->xPos + player->xMov];
+    int nextLocation = screen.map[(player->yPos) * screen.width + player->xPos];
     if (nextLocation == 'o' || nextLocation == '0') {
         if (player->yMov == 0 && player->xMov == 0) {
             //gameOver(&screen, "Zero velocity death\n");
@@ -271,12 +271,8 @@ void deathCheck(node* player, screenData screen, CLIENT_OR_SERVER cOs) {
             gameOver(&screen, msg);
         }
     }
-    if (nextLocation == 'O' || nextLocation == '@') {
-        if (player->yMov == 0 && player->xMov == 0) {
-            //do nothing for now
-        } else {
-            gameOver(&screen, "Tie\n");
-        }
+    if ((nextLocation == 'O' && cOs == SERVER) || (nextLocation == '@' && cOs == CLIENT)) {
+        gameOver(&screen, "Tie\n");
     }
 }
 

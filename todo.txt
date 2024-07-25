@@ -6,5 +6,7 @@ Events:
     rainbow
     obsticles
 
+Add timeout for recvfrom in main loop in case someone disconnects
+
 
 
