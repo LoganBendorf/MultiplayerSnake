@@ -22,8 +22,8 @@
 typedef struct node {
     char xPos;
     char yPos;
-    char yMov;
     char xMov;
+    char yMov;
     char prevXMov;
     char prevYMov;
     struct node* next;

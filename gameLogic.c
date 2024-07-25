@@ -386,8 +386,15 @@ void run(GC gc, Window window, XftColor** colorArray, struct threadDataBundle* t
     XEvent ev;
     XSelectInput(display, window, ExposureMask | KeyPressMask);
 
+    int squareWidth = WIDTH / screenPtr->width;
+    int squareHeight = HEIGHT / screenPtr->height;
+    int smallRadius = squareWidth / 4;
+    int largeRadius = squareWidth / 3;
+    #define clearSquare(x, y, w, h, window, gc) do { \
+        XSetForeground(display, gc, WhitePixel(display, screen)); \
+        drawSquare(x, y, w, h, window, gc); \
+    } while(0)
     while (true) {
-
         XCheckWindowEvent(display, window, ExposureMask, &ev);
 
         XSetForeground(display, gc, BlackPixel(display, screen));
@@ -414,44 +421,14 @@ void run(GC gc, Window window, XftColor** colorArray, struct threadDataBundle* t
         if (shouldDraw) {
             for (int y = 0; y < screenPtr->height; y++) {
                 for (int x = 0; x < screenPtr->width; x++) {
-                    int squareWidth = WIDTH / screenPtr->width;
-                    int squareHeight = HEIGHT / screenPtr->height;
                     // Centered
                     int itemStartX = x * squareWidth + squareWidth / 2;
                     int itemStartY = y * squareHeight + squareHeight / 2;
-
-                    int smallRadius = squareWidth / 4;
-                    int largeRadius = squareWidth / 3;
-                    
-                    #define clearSquare(x, y, w, h, window, gc) do { \
-                        XSetForeground(display, gc, WhitePixel(display, screen)); \
-                        drawSquare(x, y, w, h, window, gc); \
-                    } while(0)
 
                     switch(screenPtr->map[y * screenPtr->width + x]) {
                         case '#':
                             XSetForeground(display, gc, colorArray[BLUE_INDEX]->pixel);
                             drawSquare(x * squareWidth, y * squareHeight, squareWidth, squareHeight, ev.xbutton.window, gc);
-                            break;
-                        case 'O':
-                            clearSquare(x * squareWidth, y * squareHeight, squareWidth, squareHeight, ev.xbutton.window, gc);
-                            XSetForeground(display, gc, colorArray[DARK_BLUE_INDEX]->pixel);
-                            drawCircleFill(itemStartX, itemStartY, largeRadius, ev.xbutton.window, gc);
-                            break;
-                        case 'o':
-                            clearSquare(x * squareWidth, y * squareHeight, squareWidth, squareHeight, ev.xbutton.window, gc);
-                            XSetForeground(display, gc, colorArray[DARK_BLUE_INDEX]->pixel);
-                            drawCircleFill(itemStartX, itemStartY, smallRadius, ev.xbutton.window, gc);
-                            break;
-                        case '@':
-                            clearSquare(x * squareWidth, y * squareHeight, squareWidth, squareHeight, ev.xbutton.window, gc);
-                            XSetForeground(display, gc, colorArray[GREEN_INDEX]->pixel);
-                            drawCircleFill(itemStartX, itemStartY, largeRadius, ev.xbutton.window, gc);
-                            break;
-                        case '0':
-                            clearSquare(x * squareWidth, y * squareHeight, squareWidth, squareHeight, ev.xbutton.window, gc);
-                            XSetForeground(display, gc, colorArray[GREEN_INDEX]->pixel);
-                            drawCircleFill(itemStartX, itemStartY, smallRadius, ev.xbutton.window, gc);
                             break;
                         case 'a':
                             clearSquare(x * squareWidth, y * squareHeight, squareWidth, squareHeight, ev.xbutton.window, gc);
@@ -465,11 +442,67 @@ void run(GC gc, Window window, XftColor** colorArray, struct threadDataBundle* t
                             }
                             break;
                         default: 
-                            clearSquare(x * squareWidth, y * squareHeight, squareWidth, squareHeight, ev.xbutton.window, gc);
+                            //clearSquare(x * squareWidth, y * squareHeight, squareWidth, squareHeight, ev.xbutton.window, gc);
                             break;
                     }
                     XSetForeground(display, gc, BlackPixel(display, screen));
                     drawBox(x * squareWidth, y * squareHeight, (squareWidth - 1), (squareHeight - 1), ev.xbutton.window, gc);
+                }
+            }
+            // DRAW PLAYERS
+            for (int i = 0; i <= 1; i++) {
+                node* player;
+                unsigned long pixelColor;
+                if (i == 0) {
+                    player = client;
+                    pixelColor = colorArray[DARK_BLUE_INDEX]->pixel;
+                } else if (i == 1) {
+                    player = server;
+                    pixelColor = colorArray[GREEN_INDEX]->pixel;
+                }
+                if (player->next == NULL) {
+                    clearSquare((player->xPos - player->xMov) * squareWidth, (player->yPos - player->yMov) * squareHeight, squareWidth, squareHeight, ev.xbutton.window, gc);
+                    XSetForeground(display, gc, BlackPixel(display, screen));
+                    drawBox(    (player->xPos - player->xMov) * squareWidth, (player->yPos - player->yMov) * squareHeight, (squareWidth - 1), (squareHeight - 1), ev.xbutton.window, gc);
+                }
+
+                clearSquare(player->xPos * squareWidth, player->yPos * squareHeight, squareWidth, squareHeight, ev.xbutton.window, gc);
+                XSetForeground(display, gc, pixelColor);
+                drawCircleFill(player->xPos * squareWidth + squareWidth / 2, player->yPos * squareHeight + squareHeight/ 2, largeRadius, ev.xbutton.window, gc);
+
+                XSetForeground(display, gc, BlackPixel(display, screen));
+                drawBox(player->xPos * squareWidth, player->yPos * squareWidth, (squareWidth - 1), (squareHeight - 1), ev.xbutton.window, gc);
+                // It works when here but this might be really bad
+               // drawBox(    (player->xPos - player->xMov) * squareW   idth, (player->yPos - player->yMov) * squareHeight, (squareWidth - 1), (squareHeight - 1), ev.xbutton.window, gc);
+
+                node* prev = player;
+                node* head = player->next;
+                while (head != NULL) {
+                    clearSquare(head->xPos * squareWidth, head->yPos * squareWidth, squareWidth, squareHeight, ev.xbutton.window, gc);
+                    XSetForeground(display, gc, pixelColor);
+                    //drawCircleFill(head->xPos * squareWidth + squareWidth / 2, head->yPos * squareHeight + squareHeight/ 2, smallRadius, ev.xbutton.window, gc);
+                    int x = head->xPos * squareWidth + squareWidth / 4;
+                    int y = head->yPos * squareHeight + squareHeight / 4;
+                    if (prev->xMov != 0) {
+                        //sideways
+                        drawSquare(x, y + squareHeight / 8, 
+                                   squareWidth/2, squareHeight/4, ev.xbutton.window, gc);
+                    } else if (prev->yMov != 0) {
+                        drawSquare(x + squareWidth / 8, y, 
+                                   squareWidth/4, squareHeight/2, ev.xbutton.window, gc);
+                    }
+
+                    XSetForeground(display, gc, BlackPixel(display, screen));
+                    drawBox(head->xPos * squareWidth, head->yPos * squareWidth, (squareWidth - 1), (squareHeight - 1), ev.xbutton.window, gc);
+
+                    if (head->next == NULL) {
+                        clearSquare((head->xPos - head->xMov) * squareWidth, (head->yPos - head->yMov) * squareHeight, squareWidth, squareHeight, ev.xbutton.window, gc);
+                        XSetForeground(display, gc, BlackPixel(display, screen));
+                        drawBox(    (head->xPos - head->xMov) * squareWidth, (head->yPos - head->yMov) * squareHeight, (squareWidth - 1), (squareHeight - 1), ev.xbutton.window, gc);
+                    }
+
+                    prev = head;
+                    head = head->next;
                 }
             }
         }
@@ -492,6 +525,7 @@ void drawLine(int x1, int y1, int x2, int y2, Window window, GC gc) {
         }
         return;
     }
+
     float m = (float) (y1-y2) / (float) (x1-x2);
     int larger = x1;
     int smaller = x2;
