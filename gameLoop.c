@@ -51,10 +51,12 @@ void gameLoop   (
     bool appleOnMap = false;
     bool drawUpdate = false;
     bool shouldBuffer = true;
+    bool gameShouldEnd = false;
 
     struct threadDataBundle data = {.drawUpdate = &drawUpdate,
                                     .screenPtr = &screen,
-                                    .cOs = cOs};
+                                    .cOs = cOs,
+                                    .gameShouldEndPtr = &gameShouldEnd};
     if (cOs == CLIENT) {
         data.clientPtr = &player;
         data.serverPtr = &other;
@@ -70,7 +72,7 @@ void gameLoop   (
     }
     #endif
 
-    while (true) {
+    while (!gameShouldEnd) {
         #define BUFFER_SIZE 128
         char readBuffer[BUFFER_SIZE] = {0};
         char sendBuffer[BUFFER_SIZE] = {0};
@@ -179,8 +181,11 @@ void gameLoop   (
             appleOnMap = addApples(&screen);
         }
         
-        deathCheck(player, screen, cOs);
-        deathCheck(other, screen, !cOs);
+        deathCheck(player, screen, &gameShouldEnd, cOs);
+        deathCheck(other, screen, &gameShouldEnd, !cOs);
+        if (gameShouldEnd) {
+            break;
+        }
 
         printScreen(screen);
         // for graphics thread

@@ -398,8 +398,8 @@ int main(int argc, char* argv[]) {
                 );
 
 
-
-    freeaddrinfo(listenAddress);
+    while(true);
+    //freeaddrinfo(listenAddress);
     freeaddrinfo(serverAddress);
     CLOSE_SOCKET(listenSocket);
     CLOSE_SOCKET(serverSocket);

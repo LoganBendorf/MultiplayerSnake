@@ -4,7 +4,7 @@ Events:
     double speed
     zoom in
     rainbow
-    obsticles
+    obstacles
 
 Add timeout for recvfrom in main loop in case someone disconnects
 

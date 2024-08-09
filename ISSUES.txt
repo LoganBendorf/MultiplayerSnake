@@ -1,6 +1,6 @@
 
 # Players can spawn on each other
 
-Minor:
-# Snake will collide with itself when it shouldn't
-    - You should be able to make a square with 4 pieces, and keep rotating around in that square without hitting yourself, but you can't
+# Visual are messed up when board width != board height
+
+# Potential issue, screen declared as int, but is commonly screenData type. In gameLogic.c

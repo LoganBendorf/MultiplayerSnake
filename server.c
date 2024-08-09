@@ -404,8 +404,8 @@ int main(int argc, char* argv[]) {
                 );
 
 
-
-    freeaddrinfo(listenAddress);
+    while(true);
+    //freeaddrinfo(listenAddress);
     freeaddrinfo(clientAddress);
     CLOSE_SOCKET(listenSocket);
     CLOSE_SOCKET(clientSocket);

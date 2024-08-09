@@ -48,6 +48,7 @@ struct threadDataBundle {
     node** clientPtr;
     node** serverPtr;
     CLIENT_OR_SERVER cOs;
+    bool* gameShouldEndPtr;
 };
 
 char getch_nonblock();
@@ -71,7 +72,7 @@ bool addApples(screenData* screen);
 
 void drawTail(node* player, errorInfo* errorData, screenData* screen, CLIENT_OR_SERVER cOs);
 
-void deathCheck(node* player, screenData screen, CLIENT_OR_SERVER cOs);
+void deathCheck(node* player, screenData screen, bool* gameShouldEndPtr, CLIENT_OR_SERVER cOs);
 
 void catchSigThenExit(int sigNum);
 
@@ -84,12 +85,21 @@ void catchSigThenExit(int sigNum);
     #include <X11/Xatom.h>
     #include <X11/Xft/Xft.h>
 
+    typedef enum {
+        NO_FILL = 0, FILL = 1
+    } FILL_OPT;
+
     void* fancyInit(void* threadData);
     void run(GC gc, Window window, XftColor** colorArray, struct threadDataBundle* threadData);
+    void gameOverFancy(char* msg, XftColor** colorArray, Window window, GC gc);
+
+    int drawA(int x, int y, int scale, Window window, GC gc);
+    int drawE(int xStart, int yStart, int scale, Window window, GC gc);
+    int drawG(int xStart, int yStart, int scale, Window window, GC gc);
+    int drawM(int xStart, int yStart, int scale, Window window, GC gc);
 
     void drawLine(int x1, int y1, int x2, int y2, Window window, GC gc);
-    void drawCircleFill(int xStart, int yStart, int radius, Window window, GC gc);
-    void drawCircle(int xStart, int yStart, int radius, Window window, GC gc);
+    void drawCircle(int xStart, int yStart, int radius, FILL_OPT fill, Window window, GC gc);
     void drawSquare(int xStart, int yStart, int width, int height, Window window, GC gc);
     void drawBox(int xStart, int yStart, int width, int height, Window window, GC gc);
 
