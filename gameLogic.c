@@ -482,27 +482,14 @@ void run(GC gc, Window window, XftColor** colorArray, struct threadDataBundle* t
                 player = server;
                 pixelColor = colorArray[GREEN_INDEX]->pixel;
             }
-            if (player->next == NULL) {
-                clearSquare((player->xPos - player->xMov) * squareWidth, (player->yPos - player->yMov) * squareHeight, squareWidth, squareHeight, ev.xbutton.window, gc);
-                XSetForeground(display, gc, BlackPixel(display, screen));
-                drawBox(    (player->xPos - player->xMov) * squareWidth, (player->yPos - player->yMov) * squareHeight, (squareWidth - 1), (squareHeight - 1), ev.xbutton.window, gc);
-            }
-
-            clearSquare(player->xPos * squareWidth, player->yPos * squareHeight, squareWidth, squareHeight, ev.xbutton.window, gc);
-            XSetForeground(display, gc, pixelColor);
-            drawCircle(player->xPos * squareWidth + squareWidth / 2, player->yPos * squareHeight + squareHeight/ 2, largeRadius, FILL, ev.xbutton.window, gc);
-
-            XSetForeground(display, gc, BlackPixel(display, screen));
-            drawBox(player->xPos * squareWidth, player->yPos * squareWidth, (squareWidth - 1), (squareHeight - 1), ev.xbutton.window, gc);
-            // It works when here but this might be really bad
-            // drawBox(    (player->xPos - player->xMov) * squareW   idth, (player->yPos - player->yMov) * squareHeight, (squareWidth - 1), (squareHeight - 1), ev.xbutton.window, gc);
-
+            
+            // Draw tail
             node* prev = player;
             node* head = player->next;
             while (head != NULL) {
                 clearSquare(head->xPos * squareWidth, head->yPos * squareWidth, squareWidth, squareHeight, ev.xbutton.window, gc);
                 XSetForeground(display, gc, pixelColor);
-                //drawCircleFill(head->xPos * squareWidth + squareWidth / 2, head->yPos * squareHeight + squareHeight/ 2, smallRadius, ev.xbutton.window, gc);
+                
                 int x = head->xPos * squareWidth + squareWidth / 4;
                 int y = head->yPos * squareHeight + squareHeight / 4;
                 if (prev->xMov != 0) {
@@ -526,6 +513,19 @@ void run(GC gc, Window window, XftColor** colorArray, struct threadDataBundle* t
                 prev = head;
                 head = head->next;
             }
+            // Draw head
+            if (player->next == NULL) {
+                clearSquare((player->xPos - player->xMov) * squareWidth, (player->yPos - player->yMov) * squareHeight, squareWidth, squareHeight, ev.xbutton.window, gc);
+                XSetForeground(display, gc, BlackPixel(display, screen));
+                drawBox((player->xPos - player->xMov) * squareWidth, (player->yPos - player->yMov) * squareHeight, (squareWidth - 1), (squareHeight - 1), ev.xbutton.window, gc);
+            }
+
+            clearSquare(player->xPos * squareWidth, player->yPos * squareHeight, squareWidth, squareHeight, ev.xbutton.window, gc);
+            XSetForeground(display, gc, pixelColor);
+            drawCircle(player->xPos * squareWidth + squareWidth / 2, player->yPos * squareHeight + squareHeight/ 2, largeRadius, FILL, ev.xbutton.window, gc);
+
+            XSetForeground(display, gc, BlackPixel(display, screen));
+            drawBox(player->xPos * squareWidth, player->yPos * squareWidth, (squareWidth - 1), (squareHeight - 1), ev.xbutton.window, gc);
         }
     }
     gameOverFancy(NULL, colorArray, window, gc);

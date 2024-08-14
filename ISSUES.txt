@@ -4,3 +4,5 @@
 # Visual are messed up when board width != board height
 
 # Potential issue, screen declared as int, but is commonly screenData type. In gameLogic.c
+
+# Tails clear the squares behind them which can be the player head
