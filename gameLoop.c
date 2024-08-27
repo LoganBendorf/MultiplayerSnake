@@ -64,6 +64,9 @@ void gameLoop   (
         data.clientPtr = &other;
         data.serverPtr = &player;
     }
+    
+    // Zeros input
+    getInput(player, false, 'z');
 
     #if FANCY_GRAPHICS == true
     if (cOs == CLIENT) {
@@ -71,6 +74,7 @@ void gameLoop   (
         pthread_create(&graphicsThread, NULL, fancyInit, (void*) &data);
     }
     #endif
+
 
     while (!gameShouldEnd) {
         #define BUFFER_SIZE 128

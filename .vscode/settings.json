@@ -16,6 +16,7 @@
         "new": "c",
         "errorfunctions.h": "c",
         "xkblib.h": "c",
-        "ft2build.h": "c"
+        "ft2build.h": "c",
+        "gameloop.h": "c"
     }
 }

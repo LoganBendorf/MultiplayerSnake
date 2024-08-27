@@ -104,19 +104,30 @@ void gameOver(screenData* screen, char* msg) {
 }
 
 void getInput(node* player, bool shouldBuffer, char directKey) {
+    // Need to be zero'd when the game starts
+    static int xMovBuffer = 0;
+    static int yMovBuffer = 0;
 
-    
     char input = directKey;
     if (directKey == 0) {
         input = getch_nonblock();
-    };
+    } else if (directKey == 'z') {
+        // doesnt work with thread
+        xMovBuffer = 0;
+        yMovBuffer = 0;
+        player->xMov = 0;
+        player->yMov = 0;
+        player->prevXMov = 0;
+        player->prevYMov = 0;
+        player->hasTail = false;
+        player->score = 0;
+        return;
+    }
 
     // Measuring input is separate from assigning player movement to allow for buffering
     int xInput = -1 * (input == 'a') + 1 * (input == 'd');
     int yInput = -1 * (input == 'w') + 1 * (input == 's');
 
-    static int xMovBuffer = 0;
-    static int yMovBuffer = 0;
     if (shouldBuffer) {
         if (xInput != 0 || yInput != 0) {
             xMovBuffer = xInput;
@@ -568,9 +579,8 @@ void gameOverFancy(char* msg, XftColor** colorArray, Window window, GC gc) {
     #ifdef _WIN32
     sleep(8000);
     #else
-    sleep(10);
+    sleep(3);
     #endif
-    exit(1);
 }
 
 // ALPHABET
